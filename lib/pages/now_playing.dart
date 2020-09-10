@@ -5,6 +5,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_audio_query/flutter_audio_query.dart';
+import 'package:ologee_music_app/models/hive_db.dart';
 import 'package:provider/provider.dart';
 
 class NowPlayingPage extends StatefulWidget {
@@ -20,7 +21,12 @@ class NowPlayingPage extends StatefulWidget {
 
 class _NowPlayingPageState extends State<NowPlayingPage> {
   List<SongInfo> songs;
-  AudioPlayer audioPlayer = AudioPlayer(playerId: 'my_unique_playerId');
+  AudioPlayer audioPlayer = AudioPlayer(
+    playerId: 'my_unique_playerId',
+    mode: PlayerMode.MEDIA_PLAYER,
+  );
+
+//  Box<Map> musicBox = Hive.box<Map>('musicDB');
   bool isPlaying = false;
   bool isLiked = false;
   bool mute = false;
@@ -54,10 +60,12 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
   void initOnPlayerCompletion() {
     audioPlayer.onPlayerCompletion.listen((event) {
       print('done plaing ${widget.currentSongPlaying.title}');
-      setState(() {
-        currentDuration = Duration();
-        totalDuration = Duration();
-      });
+      if (mounted) {
+        setState(() {
+          currentDuration = Duration();
+          totalDuration = Duration();
+        });
+      }
       playNextSong();
     });
   }
@@ -86,6 +94,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
   }
 
   Future<int> playSong() async {
+//    audioPlayer.stop();
     if (audioPlayer.state == AudioPlayerState.PLAYING) {
       stopSong();
       if (mounted) {
@@ -98,7 +107,9 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     int status = await audioPlayer.play(
       widget.currentSongPlaying.filePath,
       isLocal: true,
+//      stayAwake: true,
     );
+    HiveMethods().saveLastSongPlayedInfoToBox(song: widget.currentSongPlaying);
 
     if (mounted) {
       setState(() {
@@ -185,6 +196,20 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     }
   }
 
+//  void saveLastSongPlayedInfoToBox({@required SongInfo song}) {
+//    String key = 'BoxOne';
+//    Map value = HiveDbModel(lastedPlayedSong: song).getInfoToSave();
+//
+//    musicBox.put(key, value);
+//  }
+//
+//  Map getLastSongPlayedInfoSavedToBox() {
+//    String key = 'BoxOne';
+//    Map song = musicBox.get(key);
+//
+//    return song;
+//  }
+
   int getCurrentPlayingSongIndex() {
     int index = songs.indexOf(widget.currentSongPlaying);
 
@@ -215,11 +240,13 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: <Widget>[
           trackImage(),
+          SizedBox(height: 30),
           optionsIcons(),
           songInfo(),
           Expanded(child: Container()),
           songSlider(),
           songControl(),
+          SizedBox(height: 40),
         ],
       ),
     );
@@ -240,9 +267,9 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
               }
             },
             child: Icon(
-              Icons.favorite_border,
+              Icons.bookmark_border,
               color: isLiked ? Colors.orangeAccent : Colors.grey,
-              size: 30,
+              size: 25,
             ),
           ),
           SizedBox(width: 30),
@@ -268,7 +295,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
             child: Icon(
               mute ? Icons.volume_off : Icons.volume_up,
               color: mute ? Colors.orangeAccent : Colors.grey,
-              size: 30,
+              size: 25,
             ),
           ),
           SizedBox(width: 30),
@@ -283,7 +310,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
             child: Icon(
               Icons.shuffle,
               color: shuffle ? Colors.orangeAccent : Colors.grey,
-              size: 30,
+              size: 25,
             ),
           ),
         ],
@@ -298,13 +325,13 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
         children: <Widget>[
           SliderTheme(
             data: SliderTheme.of(context).copyWith(
-              activeTrackColor: Colors.red[700],
-              inactiveTrackColor: Colors.red[100],
+              activeTrackColor: Colors.orange,
+              inactiveTrackColor: Colors.grey,
               trackShape: RectangularSliderTrackShape(),
               trackHeight: 4.0,
-              thumbColor: Colors.redAccent,
+              thumbColor: Colors.orange,
               thumbShape: RoundSliderThumbShape(enabledThumbRadius: 12.0),
-              overlayColor: Colors.red.withAlpha(32),
+              overlayColor: Colors.orange.withAlpha(32),
               overlayShape: RoundSliderOverlayShape(overlayRadius: 28.0),
             ),
             child: Slider(
@@ -345,7 +372,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     return Container(
       padding: const EdgeInsets.only(bottom: 5.0),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
           SizedBox(),
           InkWell(
@@ -353,11 +380,12 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
               playPreviousSong();
             },
             child: Icon(
-              Icons.skip_previous,
-              color: Colors.grey,
-              size: 50,
+              Icons.fast_rewind,
+              color: Colors.black,
+              size: 45,
             ),
           ),
+          SizedBox(width: 20),
           InkWell(
             onTap: () {
               print('pressed');
@@ -369,18 +397,20 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
             },
             child: Icon(
               isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled,
-              color: Colors.orangeAccent,
-              size: 70,
+//              color: isPlaying ? Colors.orange : Colors.grey,
+              color: Colors.orange,
+              size: 80,
             ),
           ),
+          SizedBox(width: 20),
           InkWell(
             onTap: () {
               playNextSong();
             },
             child: Icon(
-              Icons.skip_next,
-              color: Colors.grey,
-              size: 50,
+              Icons.fast_forward,
+              color: Colors.black,
+              size: 45,
             ),
           ),
           SizedBox(),
@@ -395,18 +425,18 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
       child: Column(
         children: <Widget>[
           Text(
-            '${widget.currentSongPlaying.artist}',
+            '${widget.currentSongPlaying.title.split('|')[0]}',
             style: TextStyle(
-              fontWeight: FontWeight.w300,
-              fontSize: 15,
+              fontSize: 25,
+              fontWeight: FontWeight.bold,
             ),
             textAlign: TextAlign.center,
           ),
           Text(
-            '${widget.currentSongPlaying.title.split('|')[0]}',
+            '${widget.currentSongPlaying.artist}',
             style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w300,
+              fontSize: 15,
             ),
             textAlign: TextAlign.center,
           ),
@@ -422,12 +452,30 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
           margin: EdgeInsets.all(10),
           height: 220,
           width: MediaQuery.of(context).size.width * 0.55,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(15),
-            child: Image(
-              fit: BoxFit.cover,
-              image: FileImage(File(widget.currentSongPlaying.albumArtwork)),
-            ),
+          decoration: BoxDecoration(
+//            shape: BoxShape.circle,
+              ),
+          child: Stack(
+            children: [
+              ClipOval(
+                child: Image(
+                  fit: BoxFit.cover,
+                  image:
+                      FileImage(File(widget.currentSongPlaying.albumArtwork)),
+                ),
+              ),
+              Align(
+                alignment: Alignment.center,
+                child: Container(
+                  height: 40,
+                  width: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              )
+            ],
           ),
         ),
       );
@@ -435,12 +483,20 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
       return Container(
         height: 220,
         width: MediaQuery.of(context).size.width * 0.55,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: Colors.black),
-        ),
-        child: Center(
-          child: Icon(Icons.music_note),
+//        decoration: BoxDecoration(
+//          borderRadius: BorderRadius.circular(15),
+//          border: Border.all(color: Colors.black),
+//        ),
+        child: Container(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.black),
+          ),
+          child: ClipOval(
+            child: Icon(
+              Icons.music_note,
+            ),
+          ),
         ),
       );
     }

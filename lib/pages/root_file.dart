@@ -1,11 +1,13 @@
 import 'dart:io';
 
-import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_audio_query/flutter_audio_query.dart';
-import 'package:ologee_music_app/models/get_song_class.dart';
+import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:ologee_music_app/models/hive_db.dart';
 import 'package:ologee_music_app/pages/now_playing.dart';
+import 'package:ologee_music_app/pages/online_class.dart';
 import 'package:provider/provider.dart';
 
 class RootPage extends StatefulWidget {
@@ -15,15 +17,29 @@ class RootPage extends StatefulWidget {
 
 class _RootPageState extends State<RootPage> {
   final FlutterAudioQuery audioQuery = FlutterAudioQuery();
-  AudioPlayer audioPlayer = AudioPlayer();
+
   List<SongInfo> songs;
   bool isPlaying = false;
+  bool loading = false;
   SongInfo currentSongPlaying;
+  Box<Map> musicBox;
 
-  void initPlayer() {
-//    audioPlayer.setNotification(
-//      title: 'playing',
-//    );
+  Directory rootPath;
+
+  PageController _controller = PageController(
+    initialPage: 0,
+  );
+
+  Future<void> initPlayer() async {
+    if (!mounted) return;
+
+    setState(() {
+      loading = true;
+    });
+    musicBox = await OnlineBox().getOpenBox('musicDB');
+    setState(() {
+      loading = false;
+    });
   }
 
   @override
@@ -34,6 +50,7 @@ class _RootPageState extends State<RootPage> {
 
   @override
   void dispose() {
+    _controller.dispose();
     super.dispose();
   }
 
@@ -42,171 +59,292 @@ class _RootPageState extends State<RootPage> {
     final List<SongInfo> songs = Provider.of<List<SongInfo>>(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Ologees App'),
-      ),
-      body: songs != null
-          ? Column(
-              children: <Widget>[
-                Expanded(
-                    child: ListView.builder(
-                  itemCount: songs.length,
-                  itemBuilder: (context, index) {
-                    SongInfo currentSong = songs[index];
-                    bool isCurrentSongPlaying =
-                        currentSong == currentSongPlaying;
+//      backgroundColor: Colors.teal,
+      body: loading
+          ? Center(child: CircularProgressIndicator())
+          : tarckPage(songs: songs),
+    );
+  }
 
-                    return ListTile(
-                      onTap: () {
-                        print(isCurrentSongPlaying);
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => NowPlayingPage(
-                              currentSongPlaying: songs[index],
-                            ),
-                          ),
-                        );
-                      },
-                      title: Container(
-                        width: 200,
-                        child: Text(
-                          '${currentSong.title.split('|')[0]}',
-                          style: TextStyle(),
-                          overflow: TextOverflow.ellipsis,
-                          softWrap: false,
-                        ),
-                      ),
-                      leading: currentSong.albumArtwork != null
-                          ? Container(
-                              height: 50,
-                              width: 50,
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.black),
-                                borderRadius: BorderRadius.circular(10),
+  Widget tarckPage({@required List<SongInfo> songs}) {
+    return Column(
+      children: <Widget>[
+        Flexible(
+          child: Container(
+//            decoration: BoxDecoration(
+//              color: Colors.white,
+//              borderRadius: BorderRadius.only(
+//                topRight: Radius.circular(25),
+//                topLeft: Radius.circular(25),
+//              ),
+//            ),
+            child: songs != null
+                ? ListView.builder(
+                    physics: BouncingScrollPhysics(),
+                    itemCount: songs.length,
+                    itemBuilder: (context, index) {
+                      SongInfo currentSong = songs[index];
+                      return Container(
+                        color: Colors.white,
+                        margin: EdgeInsets.all(5.0),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(5),
+                          child: Container(
+                            color: Colors.white,
+                            child: ListTile(
+                              onTap: () {
+                                SongInfo lastedSongPlayed = songs[index];
+                                int key = 0;
+
+                                HiveMethods().saveLastSongPlayedInfoToBox(
+                                    song: lastedSongPlayed);
+
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (context) => NowPlayingPage(
+                                      currentSongPlaying: songs[index],
+                                    ),
+                                  ),
+                                );
+                              },
+                              title: Container(
+                                width: 200,
+                                child: Text(
+                                  '${currentSong.title.split('|')[0]}',
+                                  style: TextStyle(
+                                    color: Colors.black,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                  softWrap: false,
+                                ),
                               ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(10),
-                                child: Image(
-                                  fit: BoxFit.fill,
-                                  image: FileImage(
-                                    File(currentSong.albumArtwork),
+                              leading: currentSong.albumArtwork != null
+                                  ? Container(
+                                      height: 50,
+                                      width: 50,
+                                      decoration: BoxDecoration(
+                                        border: Border.all(color: Colors.white),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(10),
+                                        child: Image(
+                                          fit: BoxFit.fill,
+                                          image: FileImage(
+                                            File(currentSong.albumArtwork),
+                                          ),
+                                        ),
+                                      ),
+                                    )
+                                  : Container(
+                                      height: 50,
+                                      width: 50,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        border: Border.all(color: Colors.black),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Center(
+                                        child: Icon(Icons.music_note),
+                                      ),
+                                    ),
+                              subtitle: Container(
+                                width: 100,
+                                child: Text(
+                                  '${currentSong.artist}',
+                                  style: TextStyle(
+                                    color: Colors.black,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                  softWrap: false,
+                                ),
+                              ),
+                              trailing: Container(
+//                                decoration: BoxDecoration(
+//                                  border: Border.all(color: Colors.white),
+//                                  color: Colors.grey[200],
+//                                  borderRadius: BorderRadius.circular(10.0),
+//                                ),
+                                child: Container(
+                                  margin: EdgeInsets.all(5.0),
+                                  child: Text(
+                                    '${((int.parse(currentSong.duration) / 1000) / 60).toStringAsFixed(1).replaceAll('.', ':')}',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
                               ),
-                            )
-                          : Container(
-                              height: 50,
-                              width: 50,
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.black),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Center(
-                                child: Icon(Icons.music_note),
-                              ),
-                            ),
-                      subtitle: Row(
-                        children: <Widget>[
-                          Container(
-                            width: 100,
-                            child: Text(
-                              '${currentSong.artist}',
-                              style: TextStyle(),
-                              overflow: TextOverflow.ellipsis,
-                              softWrap: false,
                             ),
                           ),
-                          Container(
-                            width: 100,
-                            child: Text(
-                              '${currentSong.duration}',
-                              style: TextStyle(),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-//                          isCurrentSongPlaying
-//                              ? Container(
-//                                  width: 100,
-//                                  child: Text(
-//                                    'Playing Now..',
-//                                    style: TextStyle(),
-//                                    overflow: TextOverflow.ellipsis,
-//                                  ),
-//                                )
-//                              : Container(),
-                        ],
-                      ),
-                    );
-                  },
-                )),
-                Container(
-                  margin: EdgeInsets.only(bottom: 2.0),
-//                  height: 65,
-                  width: MediaQuery.of(context).size.width * 0.99,
-                  decoration: BoxDecoration(
-                    color: Colors.white70,
-                    borderRadius: BorderRadius.circular(15),
-                    border: Border.all(color: Colors.black),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: <Widget>[
-                      Expanded(
-                        child: currentPlayingSongInfo(
-                          imagePath: currentSongPlaying != null
-                              ? currentSongPlaying.albumArtwork
-                              : songs[0].albumArtwork,
-                          songTitle: currentSongPlaying != null
-                              ? currentSongPlaying.title
-                              : songs[0].title,
-                          artistName: currentSongPlaying != null
-                              ? currentSongPlaying.artist
-                              : songs[0].artist,
                         ),
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.skip_previous),
-                        onPressed: () {},
-                      ),
-                      IconButton(
-                        icon: Icon(isPlaying ? Icons.pause : Icons.play_arrow),
-                        onPressed: () {
-                          if (isPlaying == true) {
-//                      SongClass().pauseSong();
-                            if (mounted) {
-                              setState(() {
-                                isPlaying = false;
-                              });
-                            }
-                          } else {
-//                      SongClass().resumeSong();
-                            if (mounted) {
-                              setState(() {
-                                isPlaying = true;
-                              });
-                            }
-                          }
-                        },
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.skip_next),
-                        onPressed: () {},
-                      ),
-                    ],
+                      );
+                    },
+                  )
+                : Center(
+                    child: CircularProgressIndicator(),
                   ),
-                ),
-              ],
-            )
-          : Center(
-              child: CircularProgressIndicator(),
+          ),
+        ),
+        Container(
+          color: Colors.white,
+          child: Container(
+            padding: EdgeInsets.only(
+              left: 5,
+              right: 5,
+//              bottom: 5,
             ),
-//      floatingActionButton: FloatingActionButton(
-//        onPressed: () {
-//          print('tap');
-//          print(songs[0]);
-//        },
-//        child: Icon(Icons.music_note),
-//      ),
+            width: double.infinity,
+            height: 50,
+            decoration: BoxDecoration(
+              color: Colors.orange,
+              borderRadius: BorderRadius.only(
+                topRight: Radius.circular(20.0),
+                topLeft: Radius.circular(20.0),
+              ),
+//              border: Border.all(color: Colors.black),
+            ),
+            child: ValueListenableBuilder(
+              valueListenable: musicBox.listenable(),
+              builder: (context, box, widget) {
+                String key = 'BoxOne';
+                print('oooooooooooooooooooooooooooooooooooooooooo');
+                print(box.get(key));
+                if (box.get(key) == null) {
+                  return GestureDetector(
+                    onTap: () {
+                      SongInfo _song = songs[0];
+                      print(_song);
+
+                      HiveMethods().saveLastSongPlayedInfoToBox(song: _song);
+
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => NowPlayingPage(
+                            currentSongPlaying: _song,
+                          ),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      child: Center(child: Text('Tap To Start Playing!')),
+                    ),
+                  );
+                } else {
+                  String songTitle = box.get(key)['songTitle'];
+                  String artistName = box.get(key)['songArtist'];
+                  String imagePath = box.get(key)['songAlbumArtwork'];
+
+                  print(
+                      'uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu');
+                  print(songTitle);
+                  print(artistName);
+                  print(imagePath);
+
+                  return GestureDetector(
+                    onTap: () {
+                      if (box.get(key) == null) {
+                        print('pls select song!!');
+                        return;
+                      } else {
+                        SongInfo _song = songs
+                            .where((element) =>
+                                element.title == songTitle &&
+                                element.artist == artistName)
+                            .toList()[0];
+                        print(_song);
+
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => NowPlayingPage(
+                              currentSongPlaying: _song,
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                    child: Row(
+                      children: <Widget>[
+                        Container(
+                          child: imagePath != null
+                              ? Center(
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(5),
+                                      border: Border.all(color: Colors.black),
+                                    ),
+                                    margin: EdgeInsets.all(5),
+                                    width: 40,
+                                    height: 60,
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(5),
+                                      child: Image(
+                                        fit: BoxFit.cover,
+                                        image: FileImage(File(imagePath)),
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              : Container(
+                                  margin: EdgeInsets.all(5),
+                                  width: 40,
+                                  height: 60,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(5),
+                                    border: Border.all(color: Colors.black),
+                                  ),
+                                  child: Center(
+                                    child: Icon(
+                                      Icons.music_note,
+                                      size: 15,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ),
+                        ),
+                        Expanded(
+                          child: Container(
+                            margin: EdgeInsets.all(5),
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text(
+                                  '${songTitle.split('|')[0]}',
+                                  style: TextStyle(
+                                    color: Colors.black,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                ),
+                                Text(
+                                  'By $artistName',
+                                  style: TextStyle(
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.w300,
+                                    fontSize: 16,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+              },
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -292,101 +430,6 @@ class _RootPageState extends State<RootPage> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget futureList() {
-    return FutureBuilder(
-      future: GetAllSongOnDevice().getSongs(),
-      builder: (context, snapshot) {
-        List<SongInfo> songs = snapshot.data;
-        if (!snapshot.hasData) {
-          return Center(
-            child: CircularProgressIndicator(),
-          );
-        } else {
-          return ListView.builder(
-            shrinkWrap: true,
-            itemCount: songs.length,
-            itemBuilder: (context, index) {
-              if (songs.length == 0 || songs == null) {
-                return CircularProgressIndicator();
-              }
-              SongInfo currentSong = songs[index];
-              return ListTile(
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => NowPlayingPage(
-                        currentSongPlaying: songs[index],
-                      ),
-                    ),
-                  );
-                },
-                title: Container(
-                  width: 200,
-                  child: Text(
-                    '${currentSong.title.split('|')[0]}',
-                    style: TextStyle(),
-                    overflow: TextOverflow.ellipsis,
-                    softWrap: false,
-                  ),
-                ),
-                leading: currentSong.albumArtwork != null
-                    ? Container(
-                        height: 50,
-                        width: 50,
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.black),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: Image(
-                            fit: BoxFit.fill,
-                            image: FileImage(
-                              File(currentSong.albumArtwork),
-                            ),
-                          ),
-                        ),
-                      )
-                    : Container(
-                        height: 50,
-                        width: 50,
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.black),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Center(
-                          child: Icon(Icons.music_note),
-                        ),
-                      ),
-                subtitle: Row(
-                  children: <Widget>[
-                    Container(
-                      width: 100,
-                      child: Text(
-                        '${currentSong.artist}',
-                        style: TextStyle(),
-                        overflow: TextOverflow.ellipsis,
-                        softWrap: false,
-                      ),
-                    ),
-                    Container(
-                      width: 100,
-                      child: Text(
-                        '${currentSong.duration}',
-                        style: TextStyle(),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          );
-        }
-      },
     );
   }
 }

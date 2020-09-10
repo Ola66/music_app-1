@@ -1,18 +1,17 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:ologee_music_app/pages/online_class.dart';
+import 'package:ologee_music_app/pages/selected_online_song.dart';
+import 'package:paginate_firestore/paginate_firestore.dart';
 
-class SelectedSongPage extends StatefulWidget {
-  final Map data;
-
-  SelectedSongPage({@required this.data});
-
+class ALlLatestSongPage extends StatefulWidget {
   @override
-  _SelectedSongPageState createState() => _SelectedSongPageState();
+  _ALlLatestSongPageState createState() => _ALlLatestSongPageState();
 }
 
-class _SelectedSongPageState extends State<SelectedSongPage> {
+class _ALlLatestSongPageState extends State<ALlLatestSongPage> {
   bool isPlaying = false;
   Box onlineSongBox;
   bool loading = true;
@@ -45,143 +44,21 @@ class _SelectedSongPageState extends State<SelectedSongPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back_ios,
-            color: Colors.black,
-          ),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+        backgroundColor: Colors.orange,
+        elevation: 0.0,
+        title: Text(
+          'Latest Songs',
+          style: TextStyle(color: Colors.black),
         ),
       ),
       body: loading
-          ? Center(child: CircularProgressIndicator())
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          ? CircularProgressIndicator()
+          : Stack(
               children: [
-                Column(
-                  children: [
-                    Center(
-                      child: Container(
-                        margin: EdgeInsets.all(15.0),
-                        height: 220,
-                        width: 190,
-//            color: Colors.grey,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.all(
-                            Radius.circular(15.0),
-                          ),
-                          child: Image.network(
-                            widget.data['imageUrl'],
-                            fit: BoxFit.cover,
-                            loadingBuilder: (BuildContext context, Widget child,
-                                ImageChunkEvent loadingProgress) {
-                              if (loadingProgress == null) return child;
-                              return Center(
-                                child: CircularProgressIndicator(
-                                  value: loadingProgress.expectedTotalBytes !=
-                                          null
-                                      ? loadingProgress.cumulativeBytesLoaded /
-                                          loadingProgress.expectedTotalBytes
-                                      : null,
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                    ),
-                    Container(
-                      margin: EdgeInsets.only(top: 15.0, left: 5.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: <Widget>[
-                          Text(
-                            widget.data['artist'].trim(),
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18.0,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          Text(
-                            widget.data['name'].trim(),
-                            style: TextStyle(
-                              fontWeight: FontWeight.w300,
-                              fontSize: 16.0,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          Text(
-                            '${widget.data['duration'].trim()} Mins',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w300,
-                              fontSize: 16.0,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: 40),
-                    InkWell(
-                      onTap: () async {
-//                        print('0000000000000000000000000000000000000000000000000');
-                        await OnlineMethods().playSong(
-                          url: widget.data['url'],
-                          data: widget.data,
-                        );
-                      },
-                      child: Container(
-                        height: 50,
-                        width: MediaQuery.of(context).size.width * .50,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20.0),
-                          color: Colors.orange,
-                        ),
-                        child: Center(
-                          child: Text(
-                            'Play',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: 40),
-                    InkWell(
-                      onTap: () async {
-                        await OnlineMethods().stopSong();
-                      },
-                      child: Container(
-                        height: 50,
-                        width: MediaQuery.of(context).size.width * .50,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20.0),
-                          color: Colors.orange,
-                        ),
-                        child: Center(
-                          child: Text(
-                            'stop',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                currentlyPlaying(),
+                latestSongs(),
+                Align(
+                    alignment: Alignment.bottomCenter,
+                    child: currentlyPlaying()),
               ],
             ),
     );
@@ -372,6 +249,105 @@ class _SelectedSongPageState extends State<SelectedSongPage> {
             }
           },
         ),
+      ),
+    );
+  }
+
+  Widget latestSongs() {
+    return Container(
+      child: PaginateFirestore(
+//        shrinkWrap: true,
+        physics: BouncingScrollPhysics(),
+        itemsPerPage: 5,
+        initialLoader: Center(child: CircularProgressIndicator()),
+        bottomLoader: Center(child: CircularProgressIndicator()),
+//                scrollDirection: Axis.horizontal,
+        itemBuilder: (context, documentSnapshot) {
+          Map data = documentSnapshot.data;
+
+          return Card(
+            elevation: 1.5,
+            child: InkWell(
+              onTap: () {
+                print(data);
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => SelectedSongPage(data: data),
+                  ),
+                );
+              },
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.all(
+                    Radius.circular(5.0),
+                  ),
+                ),
+                margin: EdgeInsets.all(5.0),
+                child: Row(
+                  children: <Widget>[
+                    SizedBox(
+                      height: 120,
+                      width: 150,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.grey,
+                        ),
+                        margin: EdgeInsets.all(2.0),
+                        child: Image.network(
+                          data['imageUrl'],
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      height: 120,
+//                  width: 150,
+                      child: Container(
+                        margin: EdgeInsets.only(top: 15.0, left: 5.0),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: <Widget>[
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text(
+                                  data['artist'].trim(),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18.0,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  data['name'].trim(),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w300,
+                                    fontSize: 16.0,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  '${data['duration'].trim()} Mins',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w300,
+                                    fontSize: 16.0,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+        query: Firestore.instance.collection('music').orderBy('timeStamp'),
       ),
     );
   }

@@ -1,4 +1,4 @@
-package com.example.ologee_music_app
+package com.ologee.shem_music
 
 import androidx.annotation.NonNull;
 import io.flutter.embedding.android.FlutterActivity

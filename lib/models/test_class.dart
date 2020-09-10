@@ -1,65 +1,55 @@
-//import 'package:audioplayers/audioplayers.dart';
-//import 'package:flutter_audio_query/flutter_audio_query.dart';
-//
-//class SongClass {
-//  final AudioPlayer audioPlayer = AudioPlayer();
-//  final SongInfo presentSong;
-//
-//  SongClass({this.presentSong});
-//
-//  playSong() async {
-////    if (audioPlayer.state == AudioPlayerState.PLAYING) {
-////      stopSong();
-////    if (status == 1) {
-////      print('ended sucessfully!');
-////    } else {
-////      print('unable to end song');
-////    }
-////    }
-////
-//    presentSong = presentSong;
-//    int status = await audioPlayer.play(
-//      presentSong.filePath,
-//      isLocal: true,
-//    );
-//
-////    return;
-//  }
-//
-//  String getState() {
-//    if (audioPlayer.state == AudioPlayerState.PLAYING) {
-//      return 'playing';
-//    } else if (audioPlayer.state == AudioPlayerState.PAUSED) {
-//      return 'paused';
-//    } else if (audioPlayer.state == AudioPlayerState.STOPPED) {
-//      return 'stopped';
-//    } else if (audioPlayer.state == AudioPlayerState.COMPLETED) {
-//      return 'complete';
-//    } else {
-//      return 'null';
-//    }
-//  }
-//
-//  Future<int> stopSong() async {
-//    int status = await audioPlayer.stop();
-//    print('stop..............');
-//
-//    return status;
-//  }
-//
-//  Future<int> pauseSong() async {
-//    int status = await audioPlayer.pause();
-//
-//    return status;
-//  }
-//
-//  Future<int> resumeSong() async {
-//    int status = await audioPlayer.resume();
-//
-//    return status;
-//  }
-//
-//  SongInfo get currentSong {
-//    return presentSong;
-//  }
-//}
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
+import 'package:http/http.dart';
+import 'package:path_provider/path_provider.dart';
+
+class MyViewModel extends ChangeNotifier {
+  String url;
+  double _progress = 0;
+  get downloadProgress => _progress;
+
+  MyViewModel({@required this.url});
+
+  void startDownloading() async {
+    _progress = null;
+    notifyListeners();
+
+//    final url =
+//        'https://file-examples.com/wp-content/uploads/2017/11/file_example_MP3_5MG.mp3';
+    final request = Request('GET', Uri.parse(url));
+    final StreamedResponse response = await Client().send(request);
+
+    final contentLength = response.contentLength;
+    // final contentLength = double.parse(response.headers['x-decompressed-content-length']);
+
+    _progress = 0;
+    notifyListeners();
+
+    List<int> bytes = [];
+
+    final file = await _getFile('song.mp3');
+    response.stream.listen(
+      (List<int> newBytes) {
+        bytes.addAll(newBytes);
+        final downloadedLength = bytes.length;
+        _progress = downloadedLength / contentLength;
+        notifyListeners();
+      },
+      onDone: () async {
+        _progress = 0;
+        notifyListeners();
+        await file.writeAsBytes(bytes);
+      },
+      onError: (e) {
+        print(e);
+      },
+      cancelOnError: true,
+    );
+  }
+
+  Future<File> _getFile(String filename) async {
+    final dir = await getApplicationDocumentsDirectory();
+    return File("${dir.path}/$filename");
+  }
+}

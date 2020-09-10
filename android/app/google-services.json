@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "1007355779074",
+    "firebase_url": "https://shem-music.firebaseio.com",
+    "project_id": "shem-music",
+    "storage_bucket": "shem-music.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1007355779074:android:89c6aec39669677504ef1b",
+        "android_client_info": {
+          "package_name": "com.ologee.shem_music"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1007355779074-k35skidud9gd5iht2q41s8btugaa1114.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBMlloFKCw6j0AxlzKDHEnjhjR6hDe2PtU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1007355779074-k35skidud9gd5iht2q41s8btugaa1114.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
